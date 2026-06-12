@@ -156,7 +156,7 @@ When review output misses something, check the `PR context prepared` log entry f
 
 ## Engines
 
-Default engine: `claude-code`. Alternatives: `codex`, `opencode`.
+Default engine: `claude-code`. Alternatives: `codex`, `opencode`, `antigravity`.
 
 ```bash
 cascade projects update <id> --agent-engine claude-code
@@ -168,7 +168,10 @@ Auth:
 
 - **Claude Code subscription**: `CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-...` (from `claude setup-token`). CASCADE writes `~/.claude.json` before run.
 - **Codex subscription**: store `CODEX_AUTH_JSON` credential (contents of `~/.codex/auth.json` after `codex login`). CASCADE persists refreshed tokens back to the DB after each run.
+- **Antigravity (Google) subscription**: store `ANTIGRAVITY_ACCOUNTS_JSON` credential (contents of `~/.config/opencode/antigravity-accounts.json` after an `opencode auth login` against the `opencode-antigravity-auth` plugin). CASCADE writes the file before each run and persists refreshed tokens back to the DB after. The `antigravity` engine runs on the OpenCode server with the pinned `opencode-antigravity-auth` plugin (see `ANTIGRAVITY_PLUGIN_VERSION` in `src/backends/antigravity/index.ts`, kept in lockstep with the `Dockerfile.worker` install). Models are addressed as `google/antigravity-<model>` (default `google/antigravity-gemini-3-pro`).
 - **API-key providers**: store `OPENAI_API_KEY` / other keys as project credentials.
+
+The `antigravity` engine **extends** `OpenCodeEngine` and reuses its entire execute pipeline (server spawn, session, stream + continuation loop, cleanup) via protected hooks (`engineLabel`, `resolveEngineSettingsForRun`, `getConfigOverrides`, `filterServerSecrets`). A future engine that is "OpenCode plus auth/provider config" can follow the same subclass pattern instead of forking the server logic.
 
 ## Environment
 

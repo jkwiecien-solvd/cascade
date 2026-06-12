@@ -1,4 +1,5 @@
 import { registerEngineSettingsSchema } from '../config/engineSettings.js';
+import { AntigravityEngine } from './antigravity/index.js';
 import { ClaudeCodeEngine } from './claude-code/index.js';
 import { CodexEngine } from './codex/index.js';
 import { LlmistEngine } from './llmist/index.js';
@@ -24,5 +25,8 @@ export function registerBuiltInEngines(): void {
 	}
 	if (!getEngine('opencode')) {
 		registerEngineWithSettings(new OpenCodeEngine());
+	}
+	if (!getEngine('antigravity')) {
+		registerEngineWithSettings(new AntigravityEngine());
 	}
 }

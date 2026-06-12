@@ -6,7 +6,7 @@ import {
 	getRegisteredEngines,
 } from '../../../src/backends/registry.js';
 
-const EXPECTED_ENGINE_IDS = ['llmist', 'claude-code', 'codex', 'opencode'] as const;
+const EXPECTED_ENGINE_IDS = ['llmist', 'claude-code', 'codex', 'opencode', 'antigravity'] as const;
 const KNOWN_AGENT_TYPES = ['implementation', 'review', 'splitting'] as const;
 
 beforeAll(() => {
@@ -14,7 +14,7 @@ beforeAll(() => {
 });
 
 describe('registerBuiltInEngines', () => {
-	it('registers all 4 built-in engines', () => {
+	it('registers all built-in engines', () => {
 		const registeredIds = getRegisteredEngines();
 		for (const id of EXPECTED_ENGINE_IDS) {
 			expect(registeredIds, `Expected engine "${id}" to be registered`).toContain(id);

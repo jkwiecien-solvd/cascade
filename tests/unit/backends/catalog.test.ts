@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	ANTIGRAVITY_ENGINE_DEFINITION,
 	CLAUDE_CODE_ENGINE_DEFINITION,
 	CODEX_ENGINE_DEFINITION,
 	DEFAULT_ENGINE_CATALOG,
@@ -9,16 +10,17 @@ import {
 import type { AgentEngineDefinition } from '../../../src/backends/types.js';
 
 describe('DEFAULT_ENGINE_CATALOG', () => {
-	it('contains exactly 4 engines', () => {
-		expect(DEFAULT_ENGINE_CATALOG).toHaveLength(4);
+	it('contains exactly 5 engines', () => {
+		expect(DEFAULT_ENGINE_CATALOG).toHaveLength(5);
 	});
 
-	it('contains llmist, claude-code, codex, and opencode engines', () => {
+	it('contains llmist, claude-code, codex, opencode, and antigravity engines', () => {
 		const ids = DEFAULT_ENGINE_CATALOG.map((e) => e.id);
 		expect(ids).toContain('llmist');
 		expect(ids).toContain('claude-code');
 		expect(ids).toContain('codex');
 		expect(ids).toContain('opencode');
+		expect(ids).toContain('antigravity');
 	});
 
 	it('has no duplicate IDs', () => {
@@ -42,11 +44,12 @@ describe('DEFAULT_ENGINE_CATALOG', () => {
 		}
 	});
 
-	it('is ordered: claude-code, llmist, codex, opencode', () => {
+	it('is ordered: claude-code, llmist, codex, opencode, antigravity', () => {
 		expect(DEFAULT_ENGINE_CATALOG[0].id).toBe('claude-code');
 		expect(DEFAULT_ENGINE_CATALOG[1].id).toBe('llmist');
 		expect(DEFAULT_ENGINE_CATALOG[2].id).toBe('codex');
 		expect(DEFAULT_ENGINE_CATALOG[3].id).toBe('opencode');
+		expect(DEFAULT_ENGINE_CATALOG[4].id).toBe('antigravity');
 	});
 });
 
@@ -213,6 +216,35 @@ describe('OPENCODE_ENGINE_DEFINITION', () => {
 		const fields = OPENCODE_ENGINE_DEFINITION.settings?.fields ?? [];
 		const webSearchField = fields.find((f) => f.key === 'webSearch');
 		expect(webSearchField?.type).toBe('boolean');
+	});
+});
+
+describe('ANTIGRAVITY_ENGINE_DEFINITION', () => {
+	it('has correct id and label', () => {
+		expect(ANTIGRAVITY_ENGINE_DEFINITION.id).toBe('antigravity');
+		expect(ANTIGRAVITY_ENGINE_DEFINITION.label).toBe('Antigravity (Google)');
+	});
+
+	it('has native-tool archetype', () => {
+		expect(ANTIGRAVITY_ENGINE_DEFINITION.archetype).toBe('native-tool');
+	});
+
+	it('has select model selection with a Gemini default label', () => {
+		expect(ANTIGRAVITY_ENGINE_DEFINITION.modelSelection.type).toBe('select');
+		if (ANTIGRAVITY_ENGINE_DEFINITION.modelSelection.type === 'select') {
+			expect(ANTIGRAVITY_ENGINE_DEFINITION.modelSelection.defaultValueLabel).toContain('Gemini');
+			expect(ANTIGRAVITY_ENGINE_DEFINITION.modelSelection.options.length).toBeGreaterThan(0);
+		}
+	});
+
+	it('has permission_policy capability', () => {
+		expect(ANTIGRAVITY_ENGINE_DEFINITION.capabilities).toContain('permission_policy');
+	});
+
+	it('has settings with webSearch field', () => {
+		const fields = ANTIGRAVITY_ENGINE_DEFINITION.settings?.fields ?? [];
+		const keys = fields.map((f) => f.key);
+		expect(keys).toContain('webSearch');
 	});
 });
 

@@ -23,7 +23,11 @@ import {
 	type OpenCodeServerState,
 	startOpenCodeServer,
 } from './server.js';
-import { OpenCodeSettingsSchema, resolveOpenCodeSettings } from './settings.js';
+import {
+	OpenCodeSettingsSchema,
+	type ResolvedOpenCodeSettings,
+	resolveOpenCodeSettings,
+} from './settings.js';
 import { getPartialOutput, type OpenCodeStreamState, processStreamEvent } from './stream.js';
 
 export function resolveOpenCodeModel(cascadeModel: string): string {
@@ -50,6 +54,7 @@ function buildConfig(
 	input: AgentExecutionPlan,
 	model: string,
 	settings: ReturnType<typeof resolveOpenCodeSettings>,
+	configOverrides: Partial<Config> = {},
 ): Config {
 	const permission = buildPermissionConfig(input.nativeToolCapabilities, settings.webSearch);
 
@@ -69,6 +74,9 @@ function buildConfig(
 				permission,
 			},
 		},
+		// Subclasses (e.g. Antigravity) inject provider/plugin config here. Keys are
+		// additive — the override set never collides with the base keys above.
+		...configOverrides,
 	};
 }
 
@@ -312,8 +320,9 @@ function logOpenCodeStart(
 	agent: 'build' | 'plan',
 	webSearch: boolean,
 	hasOffloadedContext: boolean,
+	engineLabel: string,
 ): void {
-	input.logWriter('INFO', 'Starting OpenCode execution', {
+	input.logWriter('INFO', `Starting ${engineLabel} execution`, {
 		agentType: input.agentType,
 		model,
 		opencodeAgent: agent,
@@ -331,12 +340,13 @@ async function runOpenCodeTurnLoop(
 	input: AgentExecutionPlan,
 	initialPrompt: string,
 	state: OpenCodeStreamState,
+	engineLabel: string,
 ): Promise<AgentEngineResult> {
 	return runContinuationLoop({
 		initialPrompt,
 		completionRequirements: input.completionRequirements,
 		logWriter: input.logWriter,
-		engineLabel: 'OpenCode',
+		engineLabel,
 		executeTurn: async ({ promptText }) => {
 			// Snapshot cost before this turn so we can compute a per-turn delta.
 			// state.totalCost is a cumulative running total across all turns (it
@@ -457,20 +467,68 @@ export class OpenCodeEngine extends NativeToolEngine {
 		await super.afterExecute(plan, result);
 	}
 
+	// -------------------------------------------------------------------------
+	// Extension hooks — subclasses (e.g. Antigravity) override these to reuse
+	// the full execute() pipeline (server spawn, session, stream/continuation
+	// loop, cleanup) while changing only the variable parts. Defaults reproduce
+	// the OpenCode engine's original behavior exactly.
+	// -------------------------------------------------------------------------
+
+	/** Label used in start/continuation log messages. */
+	protected get engineLabel(): string {
+		return 'OpenCode';
+	}
+
+	/**
+	 * Resolve per-run settings (e.g. webSearch). Subclasses override to read
+	 * settings stored under their own engine-id key.
+	 */
+	protected resolveEngineSettingsForRun(input: AgentExecutionPlan): ResolvedOpenCodeSettings {
+		return resolveOpenCodeSettings(input.project, input.engineSettings);
+	}
+
+	/**
+	 * Extra OpenCode `Config` keys merged on top of the base config (e.g. a
+	 * `plugin` array and `provider` model map). Keys must be additive — they
+	 * never collide with the base config keys. Defaults to no overrides.
+	 */
+	protected getConfigOverrides(_input: AgentExecutionPlan): Partial<Config> {
+		return {};
+	}
+
+	/**
+	 * Filter project secrets before they are spread into the server subprocess
+	 * env. Subclasses override this to drop disk-written auth blobs (which must
+	 * not be forwarded as env vars). Defaults to passing secrets through.
+	 */
+	protected filterServerSecrets(
+		secrets: Record<string, string> | undefined,
+	): Record<string, string> | undefined {
+		return secrets;
+	}
+
 	async execute(input: AgentExecutionPlan): Promise<AgentEngineResult> {
-		const settings = resolveOpenCodeSettings(input.project, input.engineSettings);
+		const settings = this.resolveEngineSettingsForRun(input);
 		const agent = 'build' as const;
-		// resolveOpenCodeModel() is idempotent; calling it here ensures execute() works when
-		// invoked directly (e.g. in tests) without going through the adapter.
-		const model = resolveOpenCodeModel(input.model);
-		const config = buildConfig(input, model, settings);
+		// resolveModel() delegates to resolveEngineModel(); calling it here ensures
+		// execute() works when invoked directly (e.g. in tests) without going
+		// through the adapter, and lets subclasses supply their own model resolver.
+		const model = this.resolveModel(input.model);
+		const config = buildConfig(input, model, settings, this.getConfigOverrides(input));
 		const { prompt: taskPrompt, hasOffloadedContext } = await buildTaskPrompt(
 			input.taskPrompt,
 			input.contextInjections,
 			input.repoDir,
 		);
 
-		logOpenCodeStart(input, model, agent, settings.webSearch, hasOffloadedContext);
+		logOpenCodeStart(
+			input,
+			model,
+			agent,
+			settings.webSearch,
+			hasOffloadedContext,
+			this.engineLabel,
+		);
 
 		let server: Awaited<ReturnType<typeof startOpenCodeServer>> | undefined;
 		let sessionId: string | undefined;
@@ -478,13 +536,15 @@ export class OpenCodeEngine extends NativeToolEngine {
 		const serverState: OpenCodeServerState = { stdout: '', stderr: '' };
 
 		try {
-			server = await startOpenCodeServer(
-				config,
-				input.projectSecrets,
-				input.engineLogPath,
+			// Build the server subprocess env through the engine's own allowlist
+			// (getAllowedEnvExact / getExtraEnvVars) so subclasses control which
+			// auth vars reach the OpenCode server process.
+			const serverEnv = this.buildEnv(
+				this.filterServerSecrets(input.projectSecrets),
 				input.cliToolsDir,
 				input.nativeToolShimDir,
 			);
+			server = await startOpenCodeServer(config, serverEnv, input.engineLogPath);
 			const client = createOpencodeClient({
 				baseUrl: server.url,
 				directory: input.repoDir,
@@ -492,7 +552,15 @@ export class OpenCodeEngine extends NativeToolEngine {
 			attachServerState(server, serverState);
 			sessionId = await createOpenCodeSession(client, input);
 			state = createOpenCodeStreamState(input, model, settings.webSearch, sessionId);
-			return await runOpenCodeTurnLoop(client, sessionId, agent, input, taskPrompt, state);
+			return await runOpenCodeTurnLoop(
+				client,
+				sessionId,
+				agent,
+				input,
+				taskPrompt,
+				state,
+				this.engineLabel,
+			);
 		} catch (error) {
 			const output = getPartialOutput(state);
 			const { prUrl, prEvidence } = extractAndBuildPrEvidence(output);

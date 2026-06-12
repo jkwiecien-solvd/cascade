@@ -1,3 +1,4 @@
+import { ANTIGRAVITY_MODELS } from './antigravity/models.js';
 import { CLAUDE_CODE_MODELS } from './claude-code/models.js';
 import { CODEX_MODELS } from './codex/models.js';
 import type { AgentEngineDefinition } from './types.js';
@@ -175,9 +176,46 @@ export const OPENCODE_ENGINE_DEFINITION: AgentEngineDefinition = {
 	},
 };
 
+export const ANTIGRAVITY_ENGINE_DEFINITION: AgentEngineDefinition = {
+	id: 'antigravity',
+	label: 'Antigravity (Google)',
+	description:
+		'Google Antigravity agentic coding on the OpenCode server — Gemini 3 Pro / Claude via Antigravity subscription auth.',
+	archetype: 'native-tool',
+	capabilities: [
+		'inline_prompt_context',
+		'offloaded_context_files',
+		'native_file_edit_tools',
+		'external_cli_tools',
+		'streaming_text_events',
+		'streaming_tool_events',
+		'scoped_env_secrets',
+		'permission_policy',
+	],
+	modelSelection: {
+		type: 'select',
+		defaultValueLabel: 'Default (Gemini 3 Pro)',
+		options: ANTIGRAVITY_MODELS,
+	},
+	logLabel: 'Antigravity Log',
+	settings: {
+		title: 'Antigravity Settings',
+		description: 'Headless Antigravity permission policy.',
+		fields: [
+			{
+				key: 'webSearch',
+				label: 'Web Search',
+				type: 'boolean',
+				description: 'Allow web fetch permissions during runs.',
+			},
+		],
+	},
+};
+
 export const DEFAULT_ENGINE_CATALOG: AgentEngineDefinition[] = [
 	CLAUDE_CODE_ENGINE_DEFINITION,
 	LLMIST_ENGINE_DEFINITION,
 	CODEX_ENGINE_DEFINITION,
 	OPENCODE_ENGINE_DEFINITION,
+	ANTIGRAVITY_ENGINE_DEFINITION,
 ];

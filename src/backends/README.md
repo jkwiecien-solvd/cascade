@@ -10,7 +10,7 @@ CASCADE runs coding agents through a shared execution lifecycle and a pluggable 
 - `bootstrap.ts`: built-in engine registration (also registers settings schemas)
 - `adapter.ts`: shared lifecycle around repo setup, prompts, progress, secrets, run tracking, and post-processing
 - `shared/NativeToolEngine.ts`: abstract base class for subprocess-based engines (Claude Code, Codex, OpenCode)
-- `llmist/`, `claude-code/`, `codex/`, `opencode/`: engine-specific implementations
+- `llmist/`, `claude-code/`, `codex/`, `opencode/`, `antigravity/`: engine-specific implementations. `antigravity/` is a thin subclass of `opencode/` (see below).
 
 ## Archetypes
 
@@ -18,6 +18,19 @@ Every engine declares an `archetype` in its `AgentEngineDefinition`:
 
 - **`native-tool`** — subprocess-based CLI tools (Claude Code, Codex, OpenCode). Extend `NativeToolEngine` from `shared/NativeToolEngine.ts`. The base class provides shared env-building, `supportsAgentType()`, `resolveModel()` delegation, and context file cleanup.
 - **`sdk`** — in-process SDK integrations (LLMist). Implement `AgentEngine` directly; no base class is used.
+
+## Subclassing an existing engine (Antigravity → OpenCode)
+
+When a new engine is "an existing engine plus auth/provider/config differences", subclass it instead of forking. `antigravity/` extends `OpenCodeEngine` and reuses its full `execute()` pipeline (server spawn, session, stream + continuation loop, cleanup), overriding only protected hooks:
+
+- `engineLabel` — log identity.
+- `resolveEngineModel` / `getSettingsSchema` — engine-specific model + settings (read under the `antigravity` settings key).
+- `resolveEngineSettingsForRun` — resolve per-run settings (e.g. `webSearch`).
+- `getConfigOverrides` — additive OpenCode `Config` keys (the `opencode-antigravity-auth` plugin + `google` provider model map).
+- `filterServerSecrets` — drop disk-only auth blobs (the accounts JSON) before they reach the subprocess env.
+- `beforeExecute` / `afterExecute` — write the subscription accounts JSON to disk before the run and capture rotated tokens back to the DB afterwards (codex-style; see `antigravity/auth.ts`).
+
+The OpenCode server env is built through the engine's own `getAllowedEnvExact()` / `getExtraEnvVars()` (via `NativeToolEngine.buildEnv`), so subclasses fully control which auth vars reach the server process.
 
 ## To add a new engine
 

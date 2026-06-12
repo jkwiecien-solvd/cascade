@@ -11,7 +11,6 @@ import { createServer, type Server } from 'node:net';
 import type { Config } from '@opencode-ai/sdk/client';
 
 import { appendEngineLog } from '../shared/engineLog.js';
-import { buildEnv } from './env.js';
 
 export interface OpenCodeServerState {
 	stdout: string;
@@ -46,15 +45,13 @@ export async function reservePort(): Promise<number> {
 
 export async function startOpenCodeServer(
 	config: Config,
-	projectSecrets: Record<string, string> | undefined,
+	baseEnv: Record<string, string | undefined>,
 	engineLogPath: string | undefined,
-	cliToolsDir: string,
-	nativeToolShimDir?: string,
 ): Promise<{ child: ReturnType<typeof spawn>; url: string }> {
 	const port = await reservePort();
 	const host = '127.0.0.1';
 	const env = {
-		...buildEnv(projectSecrets, cliToolsDir, nativeToolShimDir),
+		...baseEnv,
 		OPENCODE_CONFIG_CONTENT: JSON.stringify(config),
 	};
 	const args = ['serve', `--hostname=${host}`, `--port=${port}`];

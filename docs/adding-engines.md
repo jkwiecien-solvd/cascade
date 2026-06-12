@@ -519,7 +519,10 @@ Refer to these implementations for patterns and guidance:
 | Claude Code | `native-tool` | `src/backends/claude-code/` | SDK-based (not subprocess), `beforeExecute` writes onboarding flag, `afterExecute` cleans up session |
 | Codex | `native-tool` | `src/backends/codex/` | Subprocess via `spawn`, JSONL output parsing, subscription auth with token refresh |
 | OpenCode | `native-tool` | `src/backends/opencode/` | HTTP server protocol, `runContinuationLoop` for multi-turn, permission policy config |
+| Antigravity | `native-tool` | `src/backends/antigravity/` | **Subclasses `OpenCodeEngine`** — reuses the whole server/stream pipeline via protected hooks (`getConfigOverrides`, `resolveEngineSettingsForRun`, `engineLabel`, `filterServerSecrets`); injects the `opencode-antigravity-auth` plugin + `google` provider; subscription auth via accounts JSON written/captured codex-style |
 | LLMist | `sdk` | `src/backends/llmist/` | In-process SDK, synthetic context injection, no `NativeToolEngine` base class |
+
+> **Subclassing an existing engine.** When the new engine is essentially "engine X plus different auth/provider/config", extend X rather than forking. Antigravity does this with OpenCode: `OpenCodeEngine` exposes protected hooks so a subclass changes only model resolution, settings key, config overrides, server-secret filtering, and the auth lifecycle. See `src/backends/README.md` for the hook list.
 
 ---
 

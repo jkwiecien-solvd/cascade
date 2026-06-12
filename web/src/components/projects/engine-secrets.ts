@@ -49,6 +49,14 @@ export const ENGINE_SECRETS: Array<{
 		placeholder: 'sk-or-...',
 		engines: ['opencode', 'llmist'],
 	},
+	{
+		envVarKey: 'ANTIGRAVITY_ACCOUNTS_JSON',
+		label: 'Antigravity Accounts JSON',
+		description:
+			'Antigravity subscription auth — contents of ~/.config/opencode/antigravity-accounts.json after an opencode OAuth login.',
+		placeholder: '{"accounts":[{"email":"...","refreshToken":"...","projectId":"..."}]}',
+		engines: ['antigravity'],
+	},
 ];
 
 /**

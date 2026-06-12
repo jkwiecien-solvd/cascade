@@ -70,12 +70,18 @@ RUN ARCH=$(dpkg --print-architecture) && \
     chmod +x /usr/local/bin/sg
 
 # Install agent CLIs used by headless engines in worker jobs.
-# All three are explicitly pinned so worker image rebuilds are reproducible —
+# All are explicitly pinned so worker image rebuilds are reproducible —
 # upstream CLI changes can introduce subtle behavioural drift in headless mode.
+#
+# `opencode-antigravity-auth` is the OpenCode plugin powering the `antigravity`
+# engine (Google Antigravity subscription auth). Its pinned version MUST match
+# `ANTIGRAVITY_PLUGIN_VERSION` in `src/backends/antigravity/index.ts`, which is
+# what the engine puts in the OpenCode `plugin` config array at runtime.
 RUN npm install -g \
     @anthropic-ai/claude-code@2.1.119 \
     @openai/codex@0.125.0 \
-    opencode-ai@1.14.25
+    opencode-ai@1.14.25 \
+    opencode-antigravity-auth@1.2.8
 
 # Playwright browser cache.
 #
