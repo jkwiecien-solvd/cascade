@@ -178,7 +178,7 @@ export const OPENCODE_ENGINE_DEFINITION: AgentEngineDefinition = {
 
 export const ANTIGRAVITY_ENGINE_DEFINITION: AgentEngineDefinition = {
 	id: 'antigravity',
-	label: 'Antigravity (Google)',
+	label: 'Antigravity',
 	description:
 		'Google Antigravity agentic coding on the OpenCode server — Gemini 3 Pro / Claude via Antigravity subscription auth.',
 	archetype: 'native-tool',
@@ -200,13 +200,26 @@ export const ANTIGRAVITY_ENGINE_DEFINITION: AgentEngineDefinition = {
 	logLabel: 'Antigravity Log',
 	settings: {
 		title: 'Antigravity Settings',
-		description: 'Headless Antigravity permission policy.',
+		description: 'Headless Antigravity permission policy and reasoning effort.',
 		fields: [
 			{
 				key: 'webSearch',
 				label: 'Web Search',
 				type: 'boolean',
 				description: 'Allow web fetch permissions during runs.',
+			},
+			{
+				key: 'reasoningEffort',
+				label: 'Reasoning Effort',
+				type: 'select',
+				description:
+					'Thinking level for Gemini / thinking budget for Claude thinking models. Ignored by non-thinking models; unset uses the model default.',
+				options: [
+					{ value: 'minimal', label: 'Minimal' },
+					{ value: 'low', label: 'Low' },
+					{ value: 'medium', label: 'Medium' },
+					{ value: 'high', label: 'High' },
+				],
 			},
 		],
 	},

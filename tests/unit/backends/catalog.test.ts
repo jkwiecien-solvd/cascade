@@ -222,7 +222,7 @@ describe('OPENCODE_ENGINE_DEFINITION', () => {
 describe('ANTIGRAVITY_ENGINE_DEFINITION', () => {
 	it('has correct id and label', () => {
 		expect(ANTIGRAVITY_ENGINE_DEFINITION.id).toBe('antigravity');
-		expect(ANTIGRAVITY_ENGINE_DEFINITION.label).toBe('Antigravity (Google)');
+		expect(ANTIGRAVITY_ENGINE_DEFINITION.label).toBe('Antigravity');
 	});
 
 	it('has native-tool archetype', () => {

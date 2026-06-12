@@ -146,7 +146,10 @@ describe('AntigravityEngine definition', () => {
 	it('validates its settings schema', () => {
 		const engine = new AntigravityEngine();
 		const schema = engine.getSettingsSchema();
-		expect(schema.parse({ webSearch: true })).toEqual({ webSearch: true });
+		expect(schema.parse({ webSearch: true, reasoningEffort: 'high' })).toEqual({
+			webSearch: true,
+			reasoningEffort: 'high',
+		});
 	});
 
 	it('resolves the engine model through resolveAntigravityModel', () => {
@@ -165,7 +168,66 @@ describe('AntigravityEngine config overrides', () => {
 
 		expect(overrides.plugin).toEqual([ANTIGRAVITY_PLUGIN_SPEC]);
 		expect(ANTIGRAVITY_PLUGIN_SPEC).toBe(`opencode-antigravity-auth@${ANTIGRAVITY_PLUGIN_VERSION}`);
-		expect(Object.keys(overrides.provider.google.models)).toContain('antigravity-gemini-3-pro');
+		const modelIds = Object.keys(overrides.provider.google.models);
+		expect(modelIds).toEqual([
+			'antigravity-gemini-3-pro',
+			'antigravity-gemini-3.1-pro',
+			'antigravity-gemini-3-flash',
+			'antigravity-claude-sonnet-4-6',
+			'antigravity-claude-opus-4-6-thinking',
+		]);
+	});
+
+	it('omits reasoning options when no effort is configured', () => {
+		const engine = new TestableAntigravityEngine();
+		const overrides = engine.publicConfigOverrides(makeInput()) as {
+			provider: Record<string, { models: Record<string, { options?: unknown }> }>;
+		};
+		expect(overrides.provider.google.models['antigravity-gemini-3-pro'].options).toBeUndefined();
+	});
+
+	it('injects a Gemini thinkingLevel into the selected model when effort is set', () => {
+		const engine = new TestableAntigravityEngine();
+		const overrides = engine.publicConfigOverrides(
+			makeInput({
+				model: 'google/antigravity-gemini-3-pro',
+				engineSettings: { antigravity: { reasoningEffort: 'high' } },
+			}),
+		) as { provider: Record<string, { models: Record<string, { options?: unknown }> }> };
+
+		expect(overrides.provider.google.models['antigravity-gemini-3-pro'].options).toEqual({
+			thinkingLevel: 'high',
+		});
+		// Non-selected models stay untouched.
+		expect(overrides.provider.google.models['antigravity-gemini-3-flash'].options).toBeUndefined();
+	});
+
+	it('injects a Claude thinkingBudget for thinking models when effort is set', () => {
+		const engine = new TestableAntigravityEngine();
+		const overrides = engine.publicConfigOverrides(
+			makeInput({
+				model: 'google/antigravity-claude-opus-4-6-thinking',
+				engineSettings: { antigravity: { reasoningEffort: 'high' } },
+			}),
+		) as { provider: Record<string, { models: Record<string, { options?: unknown }> }> };
+
+		expect(
+			overrides.provider.google.models['antigravity-claude-opus-4-6-thinking'].options,
+		).toEqual({ thinkingConfig: { thinkingBudget: 32768 } });
+	});
+
+	it('does not inject reasoning options for non-thinking Claude models', () => {
+		const engine = new TestableAntigravityEngine();
+		const overrides = engine.publicConfigOverrides(
+			makeInput({
+				model: 'google/antigravity-claude-sonnet-4-6',
+				engineSettings: { antigravity: { reasoningEffort: 'high' } },
+			}),
+		) as { provider: Record<string, { models: Record<string, { options?: unknown }> }> };
+
+		expect(
+			overrides.provider.google.models['antigravity-claude-sonnet-4-6'].options,
+		).toBeUndefined();
 	});
 });
 

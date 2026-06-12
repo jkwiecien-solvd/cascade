@@ -81,7 +81,7 @@ RUN npm install -g \
     @anthropic-ai/claude-code@2.1.119 \
     @openai/codex@0.125.0 \
     opencode-ai@1.14.25 \
-    opencode-antigravity-auth@1.2.8
+    opencode-antigravity-auth@1.6.0
 
 # Playwright browser cache.
 #

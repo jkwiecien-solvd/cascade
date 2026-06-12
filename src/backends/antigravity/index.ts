@@ -11,12 +11,14 @@ import {
 } from './auth.js';
 import { ALLOWED_ENV_EXACT } from './env.js';
 import {
-	ANTIGRAVITY_MODEL_IDS,
+	ANTIGRAVITY_MODEL_SPECS,
 	ANTIGRAVITY_PROVIDER,
 	DEFAULT_ANTIGRAVITY_MODEL,
+	findAntigravityModelSpec,
 } from './models.js';
 import {
 	AntigravitySettingsSchema,
+	buildReasoningOptions,
 	type ResolvedAntigravitySettings,
 	resolveAntigravitySettings,
 } from './settings.js';
@@ -27,7 +29,7 @@ import {
  * MUST match the version installed in `Dockerfile.worker`. The plugin is loaded
  * by the OpenCode server via the `plugin` array in the config we inject below.
  */
-export const ANTIGRAVITY_PLUGIN_VERSION = '1.2.8';
+export const ANTIGRAVITY_PLUGIN_VERSION = '1.6.0';
 export const ANTIGRAVITY_PLUGIN_SPEC = `opencode-antigravity-auth@${ANTIGRAVITY_PLUGIN_VERSION}`;
 
 /**
@@ -115,14 +117,31 @@ export class AntigravityEngine extends OpenCodeEngine {
 	/**
 	 * Inject the Antigravity auth plugin and register the `google` provider models
 	 * the plugin serves. These keys are additive on top of OpenCode's base config.
+	 *
+	 * Reasoning effort is applied to the SELECTED model via its `options`, which
+	 * OpenCode forwards to the plugin as `providerOptions.google` (the plugin's
+	 * `extractVariantThinkingConfig` reads `thinkingLevel` / `thinkingConfig`).
+	 * This is the pinned-SDK-compatible path — `opencode-ai@1.14.25` has no
+	 * runtime `--variant` selection on the prompt body.
 	 */
-	protected getConfigOverrides(_input: AgentExecutionPlan): Partial<Config> {
-		const models = Object.fromEntries(
-			ANTIGRAVITY_MODEL_IDS.map((qualified) => [
-				qualified.slice(`${ANTIGRAVITY_PROVIDER}/`.length),
-				{},
-			]),
-		);
+	protected getConfigOverrides(input: AgentExecutionPlan): Partial<Config> {
+		const { reasoningEffort } = resolveAntigravitySettings(input.project, input.engineSettings);
+		const selectedId = findAntigravityModelSpec(this.resolveModel(input.model))?.id;
+
+		const models: Record<string, unknown> = {};
+		for (const spec of ANTIGRAVITY_MODEL_SPECS) {
+			const entry: Record<string, unknown> = {
+				name: spec.label,
+				limit: spec.limit,
+				modalities: spec.modalities,
+				reasoning: spec.family !== 'claude',
+			};
+			if (spec.id === selectedId) {
+				const options = buildReasoningOptions(spec.family, reasoningEffort);
+				if (options) entry.options = options;
+			}
+			models[spec.id] = entry;
+		}
 
 		// Cast: `plugin` / `provider` are valid OpenCode config keys but may not be
 		// surfaced on the published SDK `Config` type. They are passed through to the
