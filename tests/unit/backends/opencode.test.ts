@@ -170,6 +170,7 @@ describe('resolveOpenCodeSettings', () => {
 		const input = makeInput();
 		expect(resolveOpenCodeSettings(input.project)).toEqual({
 			webSearch: false,
+			offloadToolsReference: false,
 		});
 	});
 
@@ -183,7 +184,18 @@ describe('resolveOpenCodeSettings', () => {
 
 		expect(resolveOpenCodeSettings(input.project)).toEqual({
 			webSearch: true,
+			offloadToolsReference: false,
 		});
+	});
+
+	it('applies offloadToolsReference when provided', () => {
+		const input = makeInput({
+			project: {
+				...makeInput().project,
+				engineSettings: { opencode: { offloadToolsReference: true } },
+			},
+		});
+		expect(resolveOpenCodeSettings(input.project).offloadToolsReference).toBe(true);
 	});
 });
 

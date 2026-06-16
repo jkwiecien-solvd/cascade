@@ -6,6 +6,7 @@ export const CODEX_SETTING_DEFAULTS = {
 	approvalPolicy: 'never' as const,
 	sandboxMode: 'danger-full-access' as const,
 	webSearch: false,
+	offloadToolsReference: false,
 };
 
 export const CodexSettingsSchema = z.object({
@@ -13,12 +14,15 @@ export const CodexSettingsSchema = z.object({
 	sandboxMode: z.enum(['read-only', 'workspace-write', 'danger-full-access']).optional(),
 	reasoningEffort: z.enum(['low', 'medium', 'high', 'xhigh']).optional(),
 	webSearch: z.boolean().optional(),
+	offloadToolsReference: z.boolean().optional(),
 });
 
 export type CodexSettings = z.infer<typeof CodexSettingsSchema>;
 
 export interface ResolvedCodexSettings
-	extends Required<Pick<CodexSettings, 'approvalPolicy' | 'sandboxMode' | 'webSearch'>> {
+	extends Required<
+		Pick<CodexSettings, 'approvalPolicy' | 'sandboxMode' | 'webSearch' | 'offloadToolsReference'>
+	> {
 	reasoningEffort?: CodexSettings['reasoningEffort'];
 }
 
@@ -54,6 +58,8 @@ export function resolveCodexSettings(
 		sandboxMode: codex.sandboxMode ?? defaults.sandboxMode,
 		reasoningEffort: codex.reasoningEffort,
 		webSearch: codex.webSearch ?? CODEX_SETTING_DEFAULTS.webSearch,
+		offloadToolsReference:
+			codex.offloadToolsReference ?? CODEX_SETTING_DEFAULTS.offloadToolsReference,
 	};
 }
 

@@ -4,15 +4,18 @@ import type { ProjectConfig } from '../../types/index.js';
 
 export const OPENCODE_SETTING_DEFAULTS = {
 	webSearch: false,
+	offloadToolsReference: false,
 };
 
 export const OpenCodeSettingsSchema = z.object({
 	webSearch: z.boolean().optional(),
+	offloadToolsReference: z.boolean().optional(),
 });
 
 export type OpenCodeSettings = z.infer<typeof OpenCodeSettingsSchema>;
 
-export interface ResolvedOpenCodeSettings extends Required<Pick<OpenCodeSettings, 'webSearch'>> {}
+export interface ResolvedOpenCodeSettings
+	extends Required<Pick<OpenCodeSettings, 'webSearch' | 'offloadToolsReference'>> {}
 
 /**
  * Resolve OpenCode settings from the given engine settings, falling back to
@@ -31,5 +34,7 @@ export function resolveOpenCodeSettings(
 
 	return {
 		webSearch: opencode.webSearch ?? OPENCODE_SETTING_DEFAULTS.webSearch,
+		offloadToolsReference:
+			opencode.offloadToolsReference ?? OPENCODE_SETTING_DEFAULTS.offloadToolsReference,
 	};
 }

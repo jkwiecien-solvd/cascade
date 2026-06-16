@@ -410,6 +410,7 @@ describe('resolveCodexSettings', () => {
 			sandboxMode: 'danger-full-access',
 			webSearch: false,
 			reasoningEffort: undefined,
+			offloadToolsReference: false,
 		});
 		expect(
 			resolveCodexSettings(makeInput({ nativeToolCapabilities: ['fs:read'] }).project, ['fs:read']),
@@ -418,6 +419,7 @@ describe('resolveCodexSettings', () => {
 			sandboxMode: 'danger-full-access',
 			webSearch: false,
 			reasoningEffort: undefined,
+			offloadToolsReference: false,
 		});
 		expect(
 			resolveCodexSettings(makeInput({ nativeToolCapabilities: ['fs:write'] }).project, [
@@ -428,6 +430,7 @@ describe('resolveCodexSettings', () => {
 			sandboxMode: 'danger-full-access',
 			webSearch: false,
 			reasoningEffort: undefined,
+			offloadToolsReference: false,
 		});
 	});
 
@@ -446,7 +449,22 @@ describe('resolveCodexSettings', () => {
 			sandboxMode: 'workspace-write',
 			webSearch: true,
 			reasoningEffort: undefined,
+			offloadToolsReference: false,
 		});
+	});
+
+	it('applies offloadToolsReference when provided', () => {
+		const input = makeInput({
+			project: {
+				...makeInput().project,
+				engineSettings: {
+					codex: { offloadToolsReference: true },
+				},
+			},
+		});
+		expect(
+			resolveCodexSettings(input.project, input.nativeToolCapabilities).offloadToolsReference,
+		).toBe(true);
 	});
 
 	it('rejects interactive approval modes for headless runs', () => {

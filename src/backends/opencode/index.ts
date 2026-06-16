@@ -158,13 +158,19 @@ async function promptOpenCodeSession(
 	| undefined
 > {
 	try {
+		const settings = resolveOpenCodeSettings(input.project, input.engineSettings);
 		const promptResult = await retryNativeToolOperation(
 			() =>
 				client.session.prompt({
 					path: { id: sessionId },
 					body: {
 						agent,
-						system: buildSystemPrompt(input.systemPrompt, input.availableTools),
+						system: buildSystemPrompt(
+							input.systemPrompt,
+							input.availableTools,
+							input.repoDir,
+							settings.offloadToolsReference,
+						),
 						parts: buildPromptParts(promptText),
 					},
 					throwOnError: true,

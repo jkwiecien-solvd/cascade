@@ -1,5 +1,12 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ContextInjection, ToolManifest } from '../../../src/agents/contracts/index.js';
+
+// Mock node:fs to avoid real I/O and allow spying/mocking
+vi.mock('node:fs', () => ({
+	mkdirSync: vi.fn(),
+	writeFileSync: vi.fn(),
+}));
 
 // Mock contextFiles module to avoid filesystem I/O
 vi.mock('../../../src/backends/shared/contextFiles.js', () => ({
@@ -809,6 +816,64 @@ describe('buildSystemPrompt', () => {
 			const result = buildSystemPrompt('Agent prompt.', []);
 			expect(result).toContain('create-pr-review');
 			expect(result).toContain('--comments-file -');
+		});
+	});
+
+	describe('offloaded tool reference when repoDir is provided and offloadToolsReference is true', () => {
+		beforeEach(() => {
+			vi.mocked(mkdirSync).mockReset();
+			vi.mocked(writeFileSync).mockReset();
+		});
+
+		it('writes tools-reference.md and replaces inline guidance in prompt', () => {
+			vi.mocked(mkdirSync).mockImplementation(() => undefined);
+			vi.mocked(writeFileSync).mockImplementation(() => undefined);
+
+			const tools = [makeManifest({ name: 'ReadWorkItem' })];
+			const result = buildSystemPrompt('Agent prompt.', tools, '/repo/path', true);
+
+			expect(mkdirSync).toHaveBeenCalledWith('/repo/path/.cascade/context', { recursive: true });
+			expect(writeFileSync).toHaveBeenCalledWith(
+				'/repo/path/.cascade/context/tools-reference.md',
+				expect.stringContaining('### ReadWorkItem'),
+				'utf-8',
+			);
+
+			// System prompt should NOT contain the full guidance block
+			expect(result).not.toContain('### ReadWorkItem');
+			expect(result).not.toContain('Use the shell tool to invoke these CASCADE-specific commands.');
+
+			// System prompt should contain reference instructions
+			expect(result).toContain('## CASCADE Tools Reference');
+			expect(result).toContain('.cascade/context/tools-reference.md');
+		});
+
+		it('does not offload tool reference when offloadToolsReference is false or omitted', () => {
+			vi.mocked(mkdirSync).mockImplementation(() => undefined);
+			vi.mocked(writeFileSync).mockImplementation(() => undefined);
+
+			const tools = [makeManifest({ name: 'ReadWorkItem' })];
+			const result = buildSystemPrompt('Agent prompt.', tools, '/repo/path', false);
+
+			expect(mkdirSync).not.toHaveBeenCalled();
+			expect(writeFileSync).not.toHaveBeenCalled();
+
+			// System prompt should contain the full guidance block inline
+			expect(result).toContain('### ReadWorkItem');
+			expect(result).toContain('Use the shell tool to invoke these CASCADE-specific commands.');
+		});
+
+		it('falls back to inline guidance when writing file fails', () => {
+			vi.mocked(mkdirSync).mockImplementation(() => {
+				throw new Error('Disk full');
+			});
+
+			const tools = [makeManifest({ name: 'ReadWorkItem' })];
+			const result = buildSystemPrompt('Agent prompt.', tools, '/repo/path', true);
+
+			// System prompt should fall back to containing the full guidance block
+			expect(result).toContain('### ReadWorkItem');
+			expect(result).toContain('## CASCADE Tools');
 		});
 	});
 });
