@@ -16,3 +16,7 @@ A Pull Request for these branches should only be created once their prerequisite
 - [ ] **`feature/push-fail-fast-terminal`**
   - **Description:** Fail-fast on terminal push failure (403/401) — stops the continuation loop and allows clean session exit when `.git/push_failed_terminal` indicator file is present. Prevents agents from draining rate limits after authentication/permission errors.
   - **Prerequisites:** None
+
+- [ ] **`feature/offload-tools-docs`**
+  - **Description:** Offload large `cascade-tools` CLI documentation to `.cascade/context/tools-reference.md` via an opt-in flag (`offloadToolsReference`) in engine settings, reducing prompt input token usage by ~30%.
+  - **Prerequisites:** None
