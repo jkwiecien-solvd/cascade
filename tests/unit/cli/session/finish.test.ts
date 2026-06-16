@@ -1,8 +1,31 @@
+import * as fs from 'node:fs';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('node:fs', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('node:fs')>();
+	return {
+		...actual,
+		existsSync: vi.fn((path: string) => {
+			if (typeof path === 'string' && path.endsWith('push_failed_terminal')) {
+				return (globalThis as any).__mockPushFailedTerminal ?? false;
+			}
+			return actual.existsSync(path);
+		}),
+		readFileSync: vi.fn((path: string, options?: any) => {
+			if (typeof path === 'string' && path.endsWith('push_failed_terminal')) {
+				return JSON.stringify({
+					error: 'Authentication or permission denied (HTTP 403/401)',
+					output: '403 Forbidden',
+				});
+			}
+			return actual.readFileSync(path, options);
+		}),
+	};
+});
 
 const mockExecSync = vi.fn();
 const mockExecFileSync = vi.fn();
@@ -32,6 +55,7 @@ describe('session finish CLI', () => {
 	let originalEnv: NodeJS.ProcessEnv;
 
 	beforeEach(() => {
+		(globalThis as any).__mockPushFailedTerminal = false;
 		pushedChangesSidecarPath = join(tmpdir(), `cascade-test-finish-sidecar-${Date.now()}.json`);
 		originalEnv = { ...process.env };
 		process.env.CASCADE_PUSHED_CHANGES_SIDECAR_PATH = pushedChangesSidecarPath;
@@ -42,6 +66,7 @@ describe('session finish CLI', () => {
 	});
 
 	afterEach(() => {
+		(globalThis as any).__mockPushFailedTerminal = false;
 		rmSync(pushedChangesSidecarPath, { force: true });
 		process.env = originalEnv;
 		vi.restoreAllMocks();
@@ -120,6 +145,32 @@ describe('session finish CLI', () => {
 				error:
 					'Cannot finish session without making any changes. You must commit and push at least one change before calling Finish.',
 			}),
+		);
+	});
+
+	it('succeeds when a terminal push failure indicator is present', async () => {
+		mockExecFileSync.mockReset();
+		(globalThis as any).__mockPushFailedTerminal = true;
+
+		const cmd = new FinishCommand([], {} as never);
+		cmd.log = vi.fn();
+		cmd.parse = vi.fn().mockResolvedValue({
+			flags: {
+				comment: 'Done with push bypass',
+				'pr-created': false,
+				'review-submitted': false,
+			},
+			args: {},
+			argv: [],
+			raw: [],
+			metadata: {},
+			nonExistentFlags: {},
+		} as never);
+
+		await cmd.run();
+
+		expect(cmd.log).toHaveBeenCalledWith(
+			JSON.stringify({ success: true, data: 'Session ended: Done with push bypass' }),
 		);
 	});
 });

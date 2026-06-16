@@ -12,6 +12,9 @@
  * `readCompletionEvidence()` from `../completion.ts`.
  */
 
+import * as fs from 'node:fs';
+import { join } from 'node:path';
+
 import {
 	applyCompletionEvidence,
 	type CompletionRequirements,
@@ -41,6 +44,26 @@ export function decideContinuation(
 	toolCallCount: number,
 	engineLabel: string,
 ): ContinuationDecision {
+	// If a terminal push failure has occurred, fail-fast and stop the continuation loop.
+	// This prevents the agent from draining rate limits when push permissions are denied.
+	const indicatorFile = join(process.cwd(), '.git', 'push_failed_terminal');
+	if (fs.existsSync(indicatorFile)) {
+		let pushErrorMsg = 'Push failed: Authentication or permission denied (HTTP 403/401)';
+		try {
+			const rawContent = fs.readFileSync(indicatorFile, 'utf-8');
+			const data = JSON.parse(rawContent);
+			if (data.error) {
+				pushErrorMsg = `${data.error}. Output: ${data.output}`;
+			}
+		} catch {
+			// ignore fallback JSON parsing error
+		}
+		return {
+			done: true,
+			result: { ...result, success: false, error: pushErrorMsg, cost: totalCost },
+		};
+	}
+
 	const completionFailure = getCompletionFailure(
 		completionRequirements,
 		readCompletionEvidence(completionRequirements),

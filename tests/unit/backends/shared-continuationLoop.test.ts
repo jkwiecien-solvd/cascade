@@ -1,7 +1,31 @@
+import * as fs from 'node:fs';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('node:fs', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('node:fs')>();
+	return {
+		...actual,
+		existsSync: vi.fn((path: string) => {
+			if (typeof path === 'string' && path.endsWith('push_failed_terminal')) {
+				return (globalThis as any).__mockPushFailedTerminal ?? false;
+			}
+			return actual.existsSync(path);
+		}),
+		readFileSync: vi.fn((path: string, options?: any) => {
+			if (typeof path === 'string' && path.endsWith('push_failed_terminal')) {
+				return JSON.stringify({
+					error: 'Authentication or permission denied (HTTP 403/401)',
+					output: '403 Forbidden',
+				});
+			}
+			return actual.readFileSync(path, options);
+		}),
+	};
+});
+
 import {
 	type ContinuationTurnContext,
 	decideContinuation,
@@ -157,6 +181,36 @@ describe('decideContinuation', () => {
 			'Claude Code completion check failed; continuing session',
 			expect.any(Object),
 		);
+	});
+
+	it('returns done:true with success:false when a terminal push failure indicator is present', () => {
+		const tempDir = mkdtempSync(join(tmpdir(), 'continuation-push-fail-test-'));
+		(globalThis as any).__mockPushFailedTerminal = true;
+
+		const logWriter = vi.fn();
+		const result = makeSuccessResult({ cost: 0.1 });
+		const decision = decideContinuation(
+			result,
+			{ requiresPR: true, maxContinuationTurns: 2 },
+			0,
+			2,
+			0.1,
+			logWriter,
+			5,
+			'TestEngine',
+		);
+
+		(globalThis as any).__mockPushFailedTerminal = false;
+		rmSync(tempDir, { recursive: true, force: true });
+
+		expect(decision.done).toBe(true);
+		if (decision.done) {
+			expect(decision.result.success).toBe(false);
+			expect(decision.result.error).toContain('Authentication or permission denied');
+			expect(decision.result.error).toContain('403 Forbidden');
+			expect(decision.result.cost).toBe(0.1);
+		}
+		expect(logWriter).not.toHaveBeenCalled();
 	});
 });
 

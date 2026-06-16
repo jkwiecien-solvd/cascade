@@ -1,4 +1,6 @@
 import { execFileSync, execSync } from 'node:child_process';
+import * as fs from 'node:fs';
+import { join } from 'node:path';
 import { githubClient } from '../../../github/client.js';
 import { logger } from '../../../utils/logging.js';
 import type { SessionHooks } from '../../sessionState.js';
@@ -208,6 +210,14 @@ function checkPushedChangesHook(state: SessionState): FinishValidationError | nu
 }
 
 export async function validateFinish(state: SessionState): Promise<FinishValidationResult> {
+	// If a terminal push error has occurred, allow the session to finish so the agent
+	// can exit cleanly instead of looping.
+	const indicatorFile = join(process.cwd(), '.git', 'push_failed_terminal');
+	if (fs.existsSync(indicatorFile)) {
+		logger.warn('[Finish] allowing finish bypass due to terminal push failure');
+		return { valid: true };
+	}
+
 	const hooks = state.hooks ?? {};
 
 	if (hooks.requiresPR && !state.prCreated) {
