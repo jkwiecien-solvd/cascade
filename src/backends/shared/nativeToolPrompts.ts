@@ -1,8 +1,12 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type {
 	ToolManifestOutputShape,
 	ToolManifestOutputShapeField,
 } from '../../agents/contracts/index.js';
+import { CONTEXT_OFFLOAD_CONFIG } from '../../config/claudeCodeConfig.js';
 import { formatJsonExample, formatShellScalar } from '../../gadgets/shared/cli/shellValues.js';
+import { logger } from '../../utils/logging.js';
 import type { ContextInjection, ToolManifest } from '../types.js';
 import { buildInlineContextSection, offloadLargeContext } from './contextFiles.js';
 
@@ -286,8 +290,48 @@ export async function buildTaskPrompt(
 /**
  * Build the system prompt by combining CASCADE's agent prompt with tool guidance.
  */
-export function buildSystemPrompt(systemPrompt: string, tools: ToolManifest[]): string {
+export function buildSystemPrompt(
+	systemPrompt: string,
+	tools: ToolManifest[],
+	repoDir?: string,
+	offloadToolsReference = false,
+): string {
 	const toolGuidance = buildToolGuidance(tools);
 	const promptWithRules = `${NATIVE_TOOL_EXECUTION_RULES}\n\n${systemPrompt}`;
-	return toolGuidance ? `${promptWithRules}\n\n${toolGuidance}` : promptWithRules;
+
+	if (!toolGuidance) {
+		return promptWithRules;
+	}
+
+	if (repoDir && CONTEXT_OFFLOAD_CONFIG.enabled && offloadToolsReference) {
+		const contextDir = join(repoDir, CONTEXT_OFFLOAD_CONFIG.contextDir);
+		const relativePath = `${CONTEXT_OFFLOAD_CONFIG.contextDir}/tools-reference.md`;
+		const filepath = join(contextDir, 'tools-reference.md');
+
+		try {
+			mkdirSync(contextDir, { recursive: true });
+			writeFileSync(filepath, toolGuidance, 'utf-8');
+
+			logger.info('CASCADE tools reference offloaded to file', { path: relativePath });
+
+			const instructions = [
+				'## CASCADE Tools Reference',
+				'',
+				`The documentation for the CASCADE tools has been saved to the workspace file: \`${relativePath}\`.`,
+				'Use your built-in file-viewing/Read tool to read this file immediately to understand the commands, parameters, and output shapes available to you.',
+				'Do NOT guess the command line parameters. Always read the reference file first.',
+			].join('\n');
+
+			return `${promptWithRules}\n\n${instructions}`;
+		} catch (err) {
+			logger.warn(
+				'Failed to write tools-reference.md to workspace, falling back to inline system prompt',
+				{
+					error: err instanceof Error ? err.message : String(err),
+				},
+			);
+		}
+	}
+
+	return `${promptWithRules}\n\n${toolGuidance}`;
 }

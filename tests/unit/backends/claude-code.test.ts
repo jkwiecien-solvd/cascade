@@ -1740,6 +1740,7 @@ describe('resolveClaudeCodeSettings', () => {
 			effort: 'high',
 			thinking: 'adaptive',
 			thinkingBudgetTokens: undefined,
+			offloadToolsReference: false,
 		});
 	});
 
@@ -1752,6 +1753,7 @@ describe('resolveClaudeCodeSettings', () => {
 			effort: 'max',
 			thinking: 'adaptive',
 			thinkingBudgetTokens: undefined,
+			offloadToolsReference: false,
 		});
 
 		const projectLow = {
@@ -1776,6 +1778,7 @@ describe('resolveClaudeCodeSettings', () => {
 			effort: 'high',
 			thinking: 'enabled',
 			thinkingBudgetTokens: undefined,
+			offloadToolsReference: false,
 		});
 
 		const projectDisabled = {
@@ -1794,7 +1797,16 @@ describe('resolveClaudeCodeSettings', () => {
 			effort: 'high',
 			thinking: 'adaptive',
 			thinkingBudgetTokens: 10000,
+			offloadToolsReference: false,
 		});
+	});
+
+	it('applies offloadToolsReference when provided', () => {
+		const project = {
+			...makeInput().project,
+			engineSettings: { 'claude-code': { offloadToolsReference: true } },
+		} as AgentExecutionPlan['project'];
+		expect(resolveClaudeCodeSettings(project).offloadToolsReference).toBe(true);
 	});
 
 	it('ClaudeCodeEngine.getSettingsSchema() returns ClaudeCodeSettingsSchema', () => {

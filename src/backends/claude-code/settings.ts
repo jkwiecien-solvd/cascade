@@ -5,6 +5,7 @@ import type { ProjectConfig } from '../../types/index.js';
 export const CLAUDE_CODE_SETTING_DEFAULTS = {
 	effort: 'high' as const,
 	thinking: 'adaptive' as const,
+	offloadToolsReference: false,
 };
 
 export const ClaudeCodeSettingsSchema = z.object({
@@ -14,6 +15,7 @@ export const ClaudeCodeSettingsSchema = z.object({
 	// This field is defined here for catalog registration; the dashboard will
 	// render it once numeric fields are implemented.
 	thinkingBudgetTokens: z.number().int().positive().optional(),
+	offloadToolsReference: z.boolean().optional(),
 });
 
 export type ClaudeCodeSettings = z.infer<typeof ClaudeCodeSettingsSchema>;
@@ -22,6 +24,7 @@ export interface ResolvedClaudeCodeSettings {
 	effort: NonNullable<ClaudeCodeSettings['effort']>;
 	thinking: NonNullable<ClaudeCodeSettings['thinking']>;
 	thinkingBudgetTokens?: ClaudeCodeSettings['thinkingBudgetTokens'];
+	offloadToolsReference: boolean;
 }
 
 /**
@@ -44,5 +47,7 @@ export function resolveClaudeCodeSettings(
 		effort: claudeCode.effort ?? CLAUDE_CODE_SETTING_DEFAULTS.effort,
 		thinking: claudeCode.thinking ?? CLAUDE_CODE_SETTING_DEFAULTS.thinking,
 		thinkingBudgetTokens: claudeCode.thinkingBudgetTokens,
+		offloadToolsReference:
+			claudeCode.offloadToolsReference ?? CLAUDE_CODE_SETTING_DEFAULTS.offloadToolsReference,
 	};
 }

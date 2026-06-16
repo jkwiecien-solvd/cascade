@@ -599,7 +599,17 @@ export class CodexEngine extends NativeToolEngine {
 
 	async execute(input: AgentExecutionPlan): Promise<AgentEngineResult> {
 		const startTime = Date.now();
-		const systemPrompt = buildSystemPrompt(input.systemPrompt, input.availableTools);
+		const settings = resolveCodexSettings(
+			input.project,
+			input.nativeToolCapabilities,
+			input.engineSettings,
+		);
+		const systemPrompt = buildSystemPrompt(
+			input.systemPrompt,
+			input.availableTools,
+			input.repoDir,
+			settings.offloadToolsReference,
+		);
 		const { prompt: taskPrompt, hasOffloadedContext } = await buildTaskPrompt(
 			input.taskPrompt,
 			input.contextInjections,
@@ -608,11 +618,6 @@ export class CodexEngine extends NativeToolEngine {
 		// resolveCodexModel() is idempotent; calling it here ensures execute() works when
 		// invoked directly (e.g. in tests) without going through the adapter.
 		const model = resolveCodexModel(input.model);
-		const settings = resolveCodexSettings(
-			input.project,
-			input.nativeToolCapabilities,
-			input.engineSettings,
-		);
 		assertHeadlessCodexSettings(settings);
 
 		// When called via adapter, beforeExecute already wrote the auth file.
