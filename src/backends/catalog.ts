@@ -75,6 +75,12 @@ export const CLAUDE_CODE_ENGINE_DEFINITION: AgentEngineDefinition = {
 				type: 'number',
 				description: 'Maximum tokens allocated for extended thinking (optional).',
 			},
+			{
+				key: 'offloadToolsReference',
+				label: 'Offload Tools Reference',
+				type: 'boolean',
+				description: 'Offload cascade-tools CLI docs to a workspace file to save token usage.',
+			},
 		],
 	},
 };
@@ -141,6 +147,12 @@ export const CODEX_ENGINE_DEFINITION: AgentEngineDefinition = {
 				type: 'boolean',
 				description: 'Allow Codex to use web search during runs.',
 			},
+			{
+				key: 'offloadToolsReference',
+				label: 'Offload Tools Reference',
+				type: 'boolean',
+				description: 'Offload cascade-tools CLI docs to a workspace file to save token usage.',
+			},
 		],
 	},
 };
@@ -171,6 +183,12 @@ export const OPENCODE_ENGINE_DEFINITION: AgentEngineDefinition = {
 				label: 'Web Search',
 				type: 'boolean',
 				description: 'Allow OpenCode web fetch permissions during runs.',
+			},
+			{
+				key: 'offloadToolsReference',
+				label: 'Offload Tools Reference',
+				type: 'boolean',
+				description: 'Offload cascade-tools CLI docs to a workspace file to save token usage.',
 			},
 		],
 	},
